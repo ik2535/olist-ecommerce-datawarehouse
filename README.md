@@ -116,29 +116,8 @@ The warehouse supports analytics for:
 - **Containerized deployment** for easy reproduction
 - **Production patterns** with proper error handling
 
-## 🔒 Security
-
-**For Production Use:**
-- Change all default passwords in `.env`
-- Use strong, unique passwords
-- Enable SSL/TLS for database connections
-- Implement proper authentication & authorization
-- Use secrets management tools (AWS Secrets Manager, etc.)
-
-**Current Setup:**
-- Includes default credentials for easy local development
-- All sensitive values are configurable via environment variables
-- `.env` file is gitignored to prevent credential leakage
-
 ## 🤝 Contributing
 
 This is a portfolio project demonstrating data engineering skills. Feel free to explore the code and reach out with questions!
 
-## 📧 Contact
 
-**Your Name** - your.email@example.com  
-**LinkedIn:** [Your LinkedIn Profile]  
-**Portfolio:** [Your Portfolio Website]
-
----
-*Built with ❤️ using modern data engineering tools*
