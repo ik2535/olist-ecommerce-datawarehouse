@@ -1,0 +1,96 @@
+version: 2
+
+models:
+  - name: dim_customers
+    description: "Customer dimension table with enriched customer data"
+    columns:
+      - name: customer_id
+        description: "Primary key - unique customer identifier"
+        tests:
+          - unique
+          - not_null
+      - name: customer_unique_id
+        description: "Alternative customer identifier"
+        tests:
+          - not_null
+      - name: customer_zip_code_prefix
+        description: "Customer location zip code"
+        tests:
+          - not_null
+      - name: customer_city
+        description: "Customer city"
+        tests:
+          - not_null
+      - name: customer_state
+        description: "Customer state"
+        tests:
+          - not_null
+
+  - name: fct_orders
+    description: "Orders fact table with aggregated metrics"
+    columns:
+      - name: order_id
+        description: "Primary key - unique order identifier"
+        tests:
+          - unique
+          - not_null
+      - name: customer_id
+        description: "Foreign key to dim_customers"
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_customers')
+              field: customer_id
+      - name: order_status
+        description: "Current order status"
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['delivered', 'shipped', 'processing', 'canceled', 'unavailable', 'invoiced', 'approved', 'created']
+      - name: order_purchase_timestamp
+        description: "When the order was placed"
+        tests:
+          - not_null
+      - name: total_payment_value
+        description: "Total amount paid for the order"
+        tests:
+          - not_null
+          - dbt_utils.accepted_range:
+              min_value: 0
+              max_value: 100000
+      - name: total_item_price
+        description: "Total price of items before freight"
+        tests:
+          - dbt_utils.accepted_range:
+              min_value: 0
+              max_value: 100000
+              where: "total_item_price IS NOT NULL"
+      - name: total_freight
+        description: "Total freight cost"
+        tests:
+          - dbt_utils.accepted_range:
+              min_value: 0
+              max_value: 1000
+              where: "total_freight IS NOT NULL"
+      - name: avg_review_score
+        description: "Average review score for the order"
+        tests:
+          - dbt_utils.accepted_range:
+              min_value: 1
+              max_value: 5
+              where: "avg_review_score IS NOT NULL"
+    # Add custom tests for business logic
+    tests:
+      - dbt_utils.expression_is_true:
+          expression: "total_payment_value >= 0"
+          config:
+            severity: error
+      - dbt_utils.expression_is_true:
+          expression: "order_purchase_timestamp <= CURRENT_TIMESTAMP"
+          config:
+            severity: warn
+      # Test that delivered orders have delivery dates
+      - dbt_utils.expression_is_true:
+          expression: "(order_status = 'delivered' AND order_delivered_customer_date IS NOT NULL) OR order_status != 'delivered'"
+          config:
+            severity: warn

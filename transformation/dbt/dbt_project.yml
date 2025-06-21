@@ -1,0 +1,16 @@
+name: 'olist_dbt'
+version: '1.0'
+config-version: 2
+
+profile: 'olist_profile'
+
+model-paths: ["models"]
+target-path: "target"
+clean-targets: ["target", "dbt_modules"]
+
+models:
+  olist_dbt:
+    staging:
+      materialized: view
+    marts:
+      materialized: table

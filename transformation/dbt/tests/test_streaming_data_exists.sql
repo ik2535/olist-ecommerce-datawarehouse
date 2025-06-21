@@ -1,0 +1,1 @@
+-- Test to ensure we have recent payment data from Kafka streaming\nSELECT COUNT(*) as recent_payments\nFROM {{ ref('stg_payments') }}\nWHERE payment_value > 0\nHAVING COUNT(*) = 0  -- This will fail if we have no payments, indicating streaming issues\n

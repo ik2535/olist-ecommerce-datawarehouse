@@ -1,0 +1,71 @@
+version: 2
+
+sources:
+  - name: raw_data
+    description: "Raw data from various source systems"
+    schema: public
+    tables:
+      - name: raw_olist_customers_dataset
+        description: "Customer data from CRM system"
+        columns:
+          - name: customer_id
+            description: "Primary key"
+            tests:
+              - unique
+              - not_null
+      
+      - name: raw_olist_orders_dataset
+        description: "Order data from ERP system"
+        columns:
+          - name: order_id
+            description: "Primary key"
+            tests:
+              - unique
+              - not_null
+      
+      - name: raw_olist_order_payments_dataset
+        description: "Batch payment data from ERP system"
+        columns:
+          - name: order_id
+            description: "Order identifier"
+            tests:
+              - not_null
+          - name: payment_type
+            description: "Payment method"
+            tests:
+              - accepted_values:
+                  values: ['credit_card', 'boleto', 'voucher', 'debit_card']
+      
+      - name: raw_order_payments
+        description: "Real-time payment data from Kafka streaming"
+        freshness:
+          warn_after: {count: 10, period: minute}
+          error_after: {count: 30, period: minute}
+        columns:
+          - name: order_id
+            description: "Order identifier"
+            tests:
+              - not_null
+          - name: payment_type
+            description: "Payment method"
+            tests:
+              - accepted_values:
+                  values: ['credit_card', 'boleto', 'voucher', 'debit_card']
+      
+      - name: raw_olist_order_reviews_dataset
+        description: "Review data from external API"
+        columns:
+          - name: review_id
+            description: "Primary key"
+            tests:
+              - unique
+              - not_null
+      
+      - name: raw_olist_products_dataset
+        description: "Product catalog from external database"
+        columns:
+          - name: product_id
+            description: "Primary key"
+            tests:
+              - unique
+              - not_null

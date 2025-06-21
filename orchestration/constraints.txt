@@ -1,0 +1,2 @@
+# Prevent Windows-only packages
+pywin32==none

@@ -1,0 +1,116 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-olist}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-olist123}
+      POSTGRES_DB: ${POSTGRES_DB:-olist_dw}
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.2.2
+    ports:
+      - "2181:2181"
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+
+  kafka:
+    image: confluentinc/cp-kafka:7.2.2
+    ports:
+      - "9092:9092"
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+    depends_on:
+      - zookeeper
+
+  streaming:
+    build:
+      context: ./streaming
+      dockerfile: Dockerfile
+    depends_on:
+      - kafka
+    volumes:
+      - ./streaming:/app/streaming
+      - ./ingestion/data:/app/data
+    command: python payment_producer.py
+
+  ingestion:
+    build: ./ingestion
+    volumes:
+      - ./data:/app/data
+    depends_on:
+      - postgres
+
+  review_api:
+    build:
+      context: ./review_api
+      dockerfile: Dockerfile
+    ports:
+      - "5001:5001"
+    volumes:
+      - ./review_api:/app
+      - ./ingestion/data:/app/data  # So it can read the CSV
+
+  dbt:
+    build: ./transformation/dbt
+    volumes:
+      - ./transformation/dbt:/usr/app
+    working_dir: /usr/app
+    depends_on:
+      - postgres
+    command: run
+
+  dagster:
+    build:
+      context: ./orchestration
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+      - "3001:3001"
+    volumes:
+      - ./orchestration:/opt/dagster/app
+      - ./ingestion:/app/ingestion
+      - ./transformation/dbt:/usr/app/dbt
+      - dagster_home:/opt/dagster/dagster_home
+    working_dir: /opt/dagster/app
+    environment:
+      - DAGSTER_HOME=/opt/dagster/dagster_home
+    depends_on:
+      - postgres
+    command: dagster dev -h 0.0.0.0 -p 3000 -f repo.py
+
+  superset:
+    image: apache/superset:latest
+    container_name: superset
+    ports:
+      - "8088:8088"
+    environment:
+      SUPERSET_LOAD_EXAMPLES: "no"
+      SUPERSET_SECRET_KEY: ${SUPERSET_SECRET_KEY:-thisISaSECRET_1234}
+      DATABASE_URL: postgresql+psycopg2://${POSTGRES_USER:-olist}:${POSTGRES_PASSWORD:-olist123}@postgres:5432/${POSTGRES_DB:-olist_dw}
+    depends_on:
+      - postgres
+    volumes:
+      - superset_home:/app/superset_home
+    command: >
+      /bin/bash -c "
+      superset db upgrade &&
+      superset fab create-admin --username ${SUPERSET_ADMIN_USERNAME:-admin} --firstname Superset --lastname Admin --email ${SUPERSET_ADMIN_EMAIL:-admin@example.com} --password ${SUPERSET_ADMIN_PASSWORD:-admin} &&
+      superset init &&
+      superset run -h 0.0.0.0 -p 8088
+      "
+    restart: always
+
+volumes:
+  pgdata:
+  dagster_home:
+  superset_home:
